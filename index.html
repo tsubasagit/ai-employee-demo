@@ -1,0 +1,503 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI社員 会社案内デモ</title>
+<style>
+:root{
+  --bg:#f4f4f2; --panel:#ffffff; --ink:#1a1a1a; --sub:#6b6b6b; --line:#e2e2df;
+  --me:#1a1a1a; --me-ink:#fff; --ai:#f1f1ef; --accent:#1a1a1a; --chip:#fff; --demo:#fff7d6; --demo-ink:#6b5300;
+  --shade:rgba(0,0,0,.4);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121212; --panel:#1b1b1b; --ink:#ececec; --sub:#9a9a9a; --line:#2c2c2c;
+    --me:#ececec; --me-ink:#121212; --ai:#242424; --accent:#ececec; --chip:#1b1b1b; --demo:#2e2810; --demo-ink:#e8d48a;
+    --shade:rgba(0,0,0,.6);
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif;line-height:1.7}
+button,input,textarea{font-family:inherit}
+.wrap{max-width:820px;margin:0 auto;padding:16px 16px 24px;height:100vh;display:flex;flex-direction:column}
+.demo{background:var(--demo);color:var(--demo-ink);font-size:12px;padding:6px 12px;border-radius:8px;margin-bottom:12px}
+.brand{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.brand b{font-size:18px}
+.brand span{font-size:12px;color:var(--sub)}
+
+/* タブ */
+.tabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1px solid var(--line);scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{flex:none;display:flex;align-items:center;gap:6px;border:1px solid transparent;border-bottom:0;background:none;color:var(--sub);
+  padding:8px 12px;border-radius:10px 10px 0 0;cursor:pointer;font-size:13.5px;white-space:nowrap}
+.tab[aria-selected="true"]{background:var(--panel);color:var(--ink);border-color:var(--line);margin-bottom:-1px;font-weight:700}
+.tab .dot{width:20px;height:20px;border-radius:50%;background:var(--accent);color:var(--bg);display:grid;place-items:center;font-size:10px;font-weight:700}
+.tab .mine{font-size:10px;border:1px solid var(--line);border-radius:4px;padding:0 4px;font-weight:400}
+.tab.add{color:var(--ink);border:1px dashed var(--line);border-bottom:0}
+.panel{flex:1;min-height:0;display:none;flex-direction:column;background:var(--panel);border:1px solid var(--line);border-top:0;border-radius:0 0 12px 12px;padding:0 16px 14px}
+.panel.on{display:flex}
+
+/* 社員紹介 */
+.roster{overflow-y:auto;padding:16px 0}
+.roster h2{font-size:14px;margin:4px 0 10px;color:var(--sub);font-weight:500}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:10px;margin-bottom:22px}
+.card{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px;background:var(--panel)}
+.card .face{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:14px;background:var(--ai);color:var(--ink)}
+.card.ai .face{background:var(--accent);color:var(--bg)}
+.card b{font-size:14px}
+.card small{color:var(--sub);font-size:12px;line-height:1.5}
+.card button{margin-top:auto;border:1px solid var(--line);background:none;color:var(--ink);border-radius:8px;padding:5px;font-size:12.5px;cursor:pointer}
+.card button:hover{border-color:var(--ink)}
+.card.new{border-style:dashed;align-items:center;justify-content:center;text-align:center;cursor:pointer;color:var(--sub)}
+
+/* チャット */
+.chead{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.chead .face{width:38px;height:38px;border-radius:50%;background:var(--accent);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:13px;flex:none}
+.chead b{display:block;font-size:15px}
+.chead span{font-size:12px;color:var(--sub)}
+.chead .tools{margin-left:auto;display:flex;gap:6px}
+.chead .tools button{border:1px solid var(--line);background:none;color:var(--ink);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer}
+.log{flex:1;overflow-y:auto;padding:16px 0;display:flex;flex-direction:column;gap:12px}
+.msg{display:flex;gap:10px;max-width:100%}
+.msg .face{width:30px;height:30px;border-radius:50%;background:var(--accent);color:var(--bg);display:grid;place-items:center;font-weight:700;font-size:11px;flex:none}
+.bubble{padding:10px 14px;border-radius:14px;background:var(--ai);max-width:min(560px,86%);font-size:14.5px;overflow-wrap:anywhere;white-space:normal}
+.me{justify-content:flex-end}
+.me .bubble{background:var(--me);color:var(--me-ink);border-bottom-right-radius:4px;white-space:pre-wrap}
+.ai .bubble{border-top-left-radius:4px}
+.bubble.plain{white-space:pre-wrap}
+.bubble table{border-collapse:collapse;width:100%;margin:6px 0;font-size:13.5px}
+.bubble th,.bubble td{text-align:left;vertical-align:top;padding:5px 8px;border-bottom:1px solid var(--line)}
+.bubble th{white-space:nowrap;color:var(--sub);font-weight:500;width:7em}
+.bubble ul{margin:4px 0;padding-left:1.2em}
+.hand{display:block;margin-top:8px;font-size:12px;color:var(--sub)}
+.typing span{display:inline-block;width:6px;height:6px;margin:0 2px;border-radius:50%;background:var(--sub);animation:b 1s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:8px 0}
+.chips button{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;padding:5px 12px;font-size:13px;cursor:pointer}
+.chips button:hover{border-color:var(--ink)}
+.chips button.plus{border-style:dashed;color:var(--sub)}
+.chips button.plus:hover{color:var(--ink)}
+.ask{display:flex;gap:8px;padding-top:8px;border-top:1px solid var(--line)}
+.ask input{flex:1;min-width:0;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:12px;padding:11px 14px;font-size:15px}
+.ask input:focus,.dlg input:focus,.dlg textarea:focus{outline:2px solid var(--ink);outline-offset:-1px}
+.ask button,.primary{border:0;background:var(--accent);color:var(--bg);border-radius:12px;padding:0 18px;font-size:14px;font-weight:700;cursor:pointer}
+.note{font-size:11px;color:var(--sub);text-align:center;padding-top:8px}
+
+/* 追加ダイアログ */
+.shade{position:fixed;inset:0;background:var(--shade);display:none;align-items:center;justify-content:center;padding:16px;z-index:10}
+.shade.on{display:flex}
+.dlg{background:var(--panel);color:var(--ink);border-radius:14px;width:min(620px,100%);max-height:90vh;overflow-y:auto;padding:20px}
+.dlg h3{margin:0 0 4px;font-size:17px}
+.dlg p.lead{margin:0 0 14px;font-size:12.5px;color:var(--sub)}
+.dlg label{display:block;font-size:12.5px;color:var(--sub);margin:10px 0 4px}
+.dlg input,.dlg textarea{width:100%;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:8px;padding:8px 10px;font-size:14px}
+.dlg textarea{resize:vertical;min-height:60px}
+.row2{display:grid;grid-template-columns:1fr 2fr;gap:8px}
+.qa{border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px;position:relative}
+.qa .del{position:absolute;top:6px;right:8px;border:0;background:none;color:var(--sub);cursor:pointer;font-size:12px}
+.presets{display:flex;flex-wrap:wrap;gap:6px}
+.presets button{border:1px solid var(--line);background:none;color:var(--ink);border-radius:999px;padding:4px 10px;font-size:12px;cursor:pointer}
+.dlg .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+.dlg .actions button{padding:9px 16px}
+.ghost{border:1px solid var(--line);background:none;color:var(--ink);border-radius:12px;font-size:14px;cursor:pointer}
+@media (max-width:560px){ .row2{grid-template-columns:1fr} .chead .tools button{padding:4px 7px} }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="demo">デモ：社員10名ほどの架空の会社に、AI社員を置いた想定です。会社名・人物・住所・金額はすべて架空です。</div>
+  <div class="brand"><b id="coName"></b><span>AI社員 デモ</span></div>
+  <div class="tabs" role="tablist" id="tabs"></div>
+  <div id="panels" style="flex:1;min-height:0;display:flex;flex-direction:column"></div>
+  <div class="note">プロトタイプ（AI未接続・キーワード応答）。本番は社内資料を学習したAI社員が答えます。追加したAI社員・質問はこのブラウザにだけ保存されます。</div>
+</div>
+
+<div class="shade" id="shade">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgTitle">
+    <h3 id="dlgTitle">AI社員を追加</h3>
+    <p class="lead">名前と担当を決めて、よく聞かれる質問と答えを登録します。登録するとタブが1つ増えます。</p>
+    <label>ひな形から始める（任意）</label>
+    <div class="presets" id="presets"></div>
+    <div class="row2">
+      <div><label for="fName">名前</label><input id="fName" maxlength="12" placeholder="例：しごと係 ハル"></div>
+      <div><label for="fRole">担当（ひとこと）</label><input id="fRole" maxlength="30" placeholder="例：アフター点検の予約受付"></div>
+    </div>
+    <label for="fHello">最初のあいさつ</label>
+    <textarea id="fHello" rows="2" placeholder="例：こんにちは、点検予約係です。ご希望の日にちを教えてください。"></textarea>
+    <label>質問と答え</label>
+    <div id="qaList"></div>
+    <button class="ghost" type="button" id="addQa" style="margin-top:8px;padding:6px 12px;font-size:13px">＋ 質問を追加</button>
+    <label for="fFallback">答えられないときの返事</label>
+    <textarea id="fFallback" rows="2">その内容はまだ覚えていません。担当者に確認して折り返します。</textarea>
+    <div class="actions">
+      <button class="ghost" type="button" id="cancel">やめる</button>
+      <button class="primary" type="button" id="save">タブを作る</button>
+    </div>
+  </div>
+</div>
+
+<div class="shade" id="shadeQ">
+  <div class="dlg" role="dialog" aria-modal="true" aria-labelledby="qTitle" style="width:min(480px,100%)">
+    <h3 id="qTitle">質問を追加</h3>
+    <p class="lead" id="qLead"></p>
+    <label for="qLabel">ボタンの名前</label>
+    <input id="qLabel" maxlength="16" placeholder="例：駐車場はある？">
+    <label for="qKeys">こう聞かれたら（キーワードを「,」で区切る）</label>
+    <input id="qKeys" placeholder="例：駐車場, 車, 停め">
+    <label for="qAns">こう答える</label>
+    <textarea id="qAns" rows="3" placeholder="例：事務所の前に2台停められます。"></textarea>
+    <div class="actions">
+      <button class="ghost" type="button" id="qCancel">やめる</button>
+      <button class="primary" type="button" id="qSave">追加する</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ===== 会社データ（ここを差し替えれば別の会社のデモになる） =====
+const C = {
+  name: "株式会社あおば住設",
+  founded: "2009年4月", capital: "1,000万円", ceo: "青葉 健一", staff: 10,
+  address: "〒000-0000 東京都〇〇市〇〇町1-2-3（架空）",
+  tel: "0120-000-000（架空）",
+  hours: "平日 9:00〜18:00／土曜 9:00〜15:00（日祝休み）",
+  area: "〇〇市と隣接する5市（車で40分圏内）",
+  mission: "「住まいの困った」を、その日のうちに相談できる会社に。",
+  business: [
+    ["水回りリフォーム", "キッチン・浴室・トイレ・洗面台の交換"],
+    ["住宅の小修繕", "水漏れ、建具の不調、網戸・クロスの張り替えなど"],
+    ["外装", "外壁・屋根の塗装、雨どいの補修"],
+    ["点検・メンテナンス", "施工後1年・3年の無料点検"],
+  ],
+  members: [
+    ["青葉 健一", "代表取締役", "創業者。今も現場を見て回ります"],
+    ["森 由紀", "営業", "水回りのご相談とお見積もり"],
+    ["佐藤 拓也", "営業", "外装・塗装のご相談"],
+    ["高橋 誠", "施工管理", "現場責任者。一級建築施工管理技士"],
+    ["中村 恵", "施工管理", "キッチン・浴室の工程管理"],
+    ["小林 大輔", "施工管理", "外装・屋根の工程管理"],
+    ["伊藤 翔", "職人（設備）", "給排水・ガス設備の工事"],
+    ["渡辺 隼", "職人（内装）", "クロス・床・建具の工事"],
+    ["山本 さくら", "事務", "受付・日程調整・請求"],
+    ["加藤 真理", "事務・広報", "施工事例の更新とSNS"],
+  ],
+};
+
+const tbl = rows => "<table>" + rows.map(([k,v]) => `<tr><th>${k}</th><td>${v}</td></tr>`).join("") + "</table>";
+const hand = s => `<span class="hand">${s}</span>`;
+
+// ===== 最初からいるAI社員 =====
+const BUILTIN = [
+  { id:"guide", name:"案内係 アオイ", initial:"ア", role:"会社のことなら何でも",
+    hello:`こんにちは。${C.name}の案内係アオイです。<br>会社のこと、何でも聞いてください。`,
+    chips:["会社概要","事業内容","社員紹介","対応エリア","営業時間","問い合わせ"],
+    fallback:`申し訳ありません、その内容はまだ覚えていません。担当者に確認して折り返しますので、ご連絡先をお知らせください。`,
+    kb:[
+      { keys:["概要","基本情報","プロフィール","どんな会社","会社について"],
+        a:`${C.name}の会社概要です。` + tbl([["会社名",C.name],["設立",C.founded],["資本金",C.capital],["代表者","代表取締役　"+C.ceo],["社員数",C.staff+"名"],["所在地",C.address],["営業時間",C.hours]]) },
+      { keys:["事業","仕事","何をして","なにをして","サービス","業務内容","何をやって","なにをやって"],
+        a:"地域の住まいのリフォームと修繕をしています。<ul>" + C.business.map(([t,d]) => `<li><b>${t}</b>：${d}</li>`).join("") + "</ul>" },
+      { keys:["社員","スタッフ","メンバー","誰が","だれが","担当","紹介","人数","何人","規模"],
+        a:`社員は${C.staff}名です。` + tbl(C.members.map(([n,r,d]) => [r, `<b>${n}</b><br>${d}`])) + hand("「社員紹介」タブでも見られます。") },
+      { keys:["代表","社長","あいさつ","挨拶","経営者"],
+        a:`代表取締役の${C.ceo}です。<br>2009年に3人で始めた会社が、いまは${C.staff}名になりました。ご相談から工事後の点検まで、同じ顔ぶれでお付き合いします。` },
+      { keys:["理念","想い","思い","大切","方針","強み","特徴","選ぶ理由"],
+        a:`<b>${C.mission}</b><ul><li>お問い合わせには当日中に折り返します</li><li>追加費用が出るときは工事前に必ずご相談します</li><li>施工後1年・3年の無料点検</li></ul>` },
+      { keys:["エリア","地域","範囲","来てくれ","対応地域","出張"], a:`対応エリアは${C.area}です。エリア外もご相談ください。` },
+      { keys:["営業時間","何時","休み","定休","土曜","日曜","祝日","営業日"], a:`${C.hours}<br>水漏れなどの緊急時は、時間外もお電話ください。` },
+      { keys:["場所","住所","所在地","どこ","アクセス","事務所","駐車場"], a:`${C.address}<br>事務所でカタログをご覧いただけます（駐車場2台）。` },
+      { keys:["問い合わせ","問合せ","連絡","電話","相談","依頼","申し込","頼みたい"],
+        a:`お電話は <b>${C.tel}</b>（${C.hours}）です。<br>ここにご用件とご連絡先を書いていただければ、担当者から当日中に折り返します。` + hand("本番では、ここで聞いた内容を担当者のSlack／Teamsに引き継ぎます。") },
+      { keys:["沿革","歴史","創業","設立","いつから"],
+        a: tbl([["2009年","3名で創業。水回り修理から始める"],["2014年","外壁・屋根塗装を開始"],["2019年","社員7名に。施工後点検の制度を開始"],["2025年","社員10名に"]]) },
+      { keys:["料金","価格","いくら","値段","費用","見積"], a:`費用のことは、見積もり係のミツが詳しいです。上の「見積もり係 ミツ」タブで聞いてみてください。` },
+      { keys:["採用","求人","働きたい","募集","入社"], a:`採用のことは、採用係のハルがお答えします。上の「採用係 ハル」タブへどうぞ。` },
+    ]},
+  { id:"quote", name:"見積もり係 ミツ", initial:"ミ", role:"費用の目安と工事の流れ",
+    hello:`見積もり係のミツです。費用の目安、工期、支払い方法などをお答えします。`,
+    chips:["費用の目安","工事の流れ","工期","支払い方法","見積もりは無料？"],
+    fallback:`その工事の目安はまだ覚えていません。営業の森か佐藤が、現地を見て無料でお見積もりします。`,
+    kb:[
+      { keys:["費用","料金","価格","いくら","値段","目安","相場","トイレ","キッチン","浴室","お風呂","洗面","外壁","塗装"],
+        a:"目安です（現地確認のうえ正式にお見積もりします）。" + tbl([["トイレ交換","15万円〜"],["洗面台交換","12万円〜"],["キッチン交換","60万円〜"],["浴室（ユニットバス）","90万円〜"],["外壁塗装（30坪）","80万円〜"]]) + hand("※架空の金額です。本番では会社の実際の料金表を学習させます。") },
+      { keys:["流れ","手順","進め方","ステップ"],
+        a:"<ul><li>①お問い合わせ（電話・このチャット）</li><li>②現地調査（30〜60分・無料）</li><li>③お見積もり（3営業日以内）</li><li>④ご契約・日程決め</li><li>⑤工事</li><li>⑥完了確認・お支払い</li><li>⑦1年・3年後の無料点検</li></ul>" },
+      { keys:["工期","何日","日数","期間","どれくらい","かかる"],
+        a: tbl([["トイレ","半日〜1日"],["洗面台","半日"],["キッチン","2〜4日"],["浴室","3〜5日"],["外壁塗装","10〜14日（天候による）"]]) },
+      { keys:["支払","払い","振込","カード","ローン","分割"], a:"お支払いは工事完了後に、銀行振込かクレジットカードでお願いしています。50万円以上の工事はリフォームローンもご案内できます。" },
+      { keys:["無料","タダ","有料","お金かかる"], a:"現地調査とお見積もりは無料です。お見積もり後にお断りいただいても費用はかかりません。" },
+      { keys:["追加","増額","予算オーバー"], a:"工事中に追加が必要になったときは、必ず作業を止めてご相談します。ご了承なく金額が増えることはありません。" },
+    ]},
+  { id:"recruit", name:"採用係 ハル", initial:"ハ", role:"募集職種と応募のご案内",
+    hello:`採用係のハルです。あおば住設で働くことに興味を持っていただき、ありがとうございます。`,
+    chips:["募集職種","給与","休日","未経験でも大丈夫？","応募方法"],
+    fallback:`その内容は採用担当の山本から直接ご説明します。ご連絡先をお知らせください。`,
+    kb:[
+      { keys:["募集","職種","求人","仕事","何の"], a:"いま募集しているのは2職種です。<ul><li>施工管理（1名）</li><li>職人・設備（1名）</li></ul>" },
+      { keys:["給与","給料","月給","年収","いくら","賞与","ボーナス"], a: tbl([["施工管理","月給28万円〜"],["職人・設備","月給25万円〜"],["賞与","年2回"]]) + hand("※架空の条件です。") },
+      { keys:["休日","休み","休暇","残業","週休"], a:"日曜・祝日休み、土曜は月2回休み。夏季・年末年始休暇あり。残業は月平均10時間です。" },
+      { keys:["未経験","経験","資格","初心者","できるか"], a:"未経験の方も歓迎です。最初の3か月は先輩の高橋か伊藤について、現場で覚えていただきます。資格取得の費用は会社が負担します。" },
+      { keys:["応募","面接","エントリー","申し込"], a:"このチャットにお名前とご連絡先を書いていただくか、お電話ください。面接は1回、事務所で30分ほどです。" },
+      { keys:["雰囲気","職場","人間関係","社員"], a:`社員${C.staff}名の小さな会社です。月1回、みんなで現場の振り返りをしています。「社員紹介」タブで顔ぶれを見られます。` },
+    ]},
+];
+
+// ===== ひな形（追加画面で使う） =====
+const PRESETS = [
+  { label:"点検予約係", name:"点検係 ソラ", role:"アフター点検の予約受付", hello:"点検係のソラです。施工後の無料点検のご予約を受け付けます。",
+    qa:[["点検,いつ,無料点検","施工後1年と3年に無料点検を行っています。時期が近づいたらこちらからもご連絡します。"],["予約,日にち,日程","ご希望の日にちを2〜3候補お知らせください。事務の山本が確定のご連絡をします。"]] },
+  { label:"社内の総務係", name:"総務係 リン", role:"社員向け：経費・休暇のルール", hello:"総務係のリンです。社内ルールのことを聞いてください（社員向け）。",
+    qa:[["経費,精算,立替","経費は月末締めで、レシートの写真を経費アプリに上げてください。翌月10日に振り込みます。"],["有給,休暇,休み","有給の申請は3日前までに山本へ。急な体調不良は当日朝に電話でOKです。"]] },
+  { label:"白紙から", name:"", role:"", hello:"", qa:[["",""]] },
+];
+
+// ===== 保存（このブラウザだけ） =====
+const KEY = "aoba-ai-custom-v1";
+const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || []; } catch(e){ return []; } };
+const store = list => { try { localStorage.setItem(KEY, JSON.stringify(list)); } catch(e){} };
+let custom = load();
+
+// 最初からいるAI社員に、あとから足した質問（このブラウザだけ）
+const XKEY = "aoba-ai-extra-v1";
+let extra = (() => { try { return JSON.parse(localStorage.getItem(XKEY)) || {}; } catch(e){ return {}; } })();
+const storeExtra = () => { try { localStorage.setItem(XKEY, JSON.stringify(extra)); } catch(e){} };
+BUILTIN.forEach(a => (extra[a.id] || []).forEach(x => { a.kb.push({ ...x, text:true }); a.chips.push(x.label); }));
+
+// ===== 共通 =====
+const norm = s => String(s).toLowerCase().replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/\s/g,"");
+const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const allAgents = () => [...BUILTIN, ...custom];
+const initialOf = n => (n.split(/\s|　/).pop() || n).trim().charAt(0) || "AI";
+
+function answer(agent, q){
+  const t = norm(q);
+  let best = null, score = 0;
+  for (const item of agent.kb){
+    const s = item.keys.reduce((n,k) => n + (k && t.includes(norm(k)) ? k.length : 0), 0);
+    if (s > score){ score = s; best = item; }
+  }
+  if (best) return (agent.custom || best.text) ? { text: best.a } : { html: best.a };
+  return agent.custom ? { text: agent.fallback } : { html: agent.fallback };
+}
+
+// ===== 画面 =====
+document.getElementById("coName").textContent = C.name;
+const tabsEl = document.getElementById("tabs");
+const panelsEl = document.getElementById("panels");
+let current = "roster";
+const panels = {};   // id -> panel要素（会話を残すため作り直さない）
+
+function renderTabs(){
+  tabsEl.innerHTML = "";
+  const mk = (id, html, extraClass="") => {
+    const b = document.createElement("button");
+    b.className = "tab " + extraClass; b.type = "button"; b.setAttribute("role","tab");
+    b.setAttribute("aria-selected", id === current ? "true" : "false");
+    b.innerHTML = html; b.onclick = () => id === "+" ? openDialog() : show(id);
+    tabsEl.appendChild(b);
+  };
+  mk("roster", "社員紹介");
+  allAgents().forEach(a => mk(a.id, `<span class="dot">${esc(a.initial)}</span>${esc(a.name)}${a.custom ? '<span class="mine">追加</span>' : ""}`));
+  mk("+", "＋ AI社員を追加", "add");
+}
+
+function show(id){
+  current = id;
+  if (!panels[id]) panels[id] = id === "roster" ? null : buildChat(allAgents().find(a => a.id === id));
+  if (id === "roster") panels.roster = buildRoster();
+  Object.values(panels).forEach(p => p && p.classList.remove("on"));
+  panels[id].classList.add("on");
+  renderTabs();
+  const inp = panels[id].querySelector(".ask input"); if (inp && matchMedia("(min-width:700px)").matches) inp.focus();
+}
+
+function buildRoster(){
+  if (panels.roster) panels.roster.remove();
+  const p = document.createElement("div");
+  p.className = "panel roster";
+  const ai = allAgents().map(a => `
+    <div class="card ai"><div class="face">${esc(a.initial)}</div><b>${esc(a.name)}</b><small>${esc(a.role || "")}${a.custom ? "（追加）" : ""}</small>
+    <button type="button" data-go="${esc(a.id)}">話しかける</button></div>`).join("");
+  const people = C.members.map(([n,r,d]) => `
+    <div class="card"><div class="face">${esc(n.charAt(0))}</div><b>${esc(n)}</b><small>${esc(r)}<br>${esc(d)}</small></div>`).join("");
+  p.innerHTML = `<h2>AI社員（${allAgents().length}名）— 24時間、お客様と社内の質問に答えます</h2>
+    <div class="grid">${ai}<div class="card new" tabindex="0" role="button" id="newCard"><b>＋</b><small>AI社員を追加する<br>（タブが増えます）</small></div></div>
+    <h2>社員（${C.staff}名）</h2><div class="grid">${people}</div>`;
+  p.querySelectorAll("[data-go]").forEach(b => b.onclick = () => show(b.dataset.go));
+  const nc = p.querySelector("#newCard");
+  nc.onclick = openDialog; nc.onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDialog(); } };
+  panelsEl.appendChild(p);
+  return p;
+}
+
+function buildChat(agent){
+  const p = document.createElement("div");
+  p.className = "panel";
+  p.innerHTML = `
+    <div class="chead"><div class="face">${esc(agent.initial)}</div>
+      <div><b>${esc(agent.name)}</b><span>${esc(agent.role || "")}</span></div>
+      <div class="tools">${agent.custom ? '<button type="button" data-act="edit">編集</button><button type="button" data-act="del">削除</button>' : ""}</div></div>
+    <div class="log" aria-live="polite"></div>
+    <div class="chips"></div>
+    <form class="ask"><input autocomplete="off" placeholder="質問を入力" aria-label="質問"><button>送信</button></form>`;
+  const log = p.querySelector(".log");
+
+  const add = (who, content, isText) => {
+    const row = document.createElement("div");
+    row.className = "msg " + who;
+    row.innerHTML = who === "ai" ? `<div class="face">${esc(agent.initial)}</div><div class="bubble"></div>` : `<div class="bubble"></div>`;
+    const bub = row.querySelector(".bubble");
+    if (who === "me" || isText) { bub.textContent = content; bub.classList.add("plain"); } else bub.innerHTML = content;
+    log.appendChild(row); log.scrollTop = log.scrollHeight;
+    return bub;
+  };
+  const ask = q => {
+    if (!q.trim()) return;
+    add("me", q);
+    const bub = add("ai", `<span class="typing"><span></span><span></span><span></span></span>`);
+    setTimeout(() => {
+      const r = answer(agent, q);
+      if (r.html) bub.innerHTML = r.html; else { bub.textContent = r.text; bub.classList.add("plain"); }
+      log.scrollTop = log.scrollHeight;
+    }, 450 + Math.random()*450);
+  };
+
+  const chipBox = p.querySelector(".chips");
+  const addChip = c => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = c;
+    b.onclick = () => ask(c); chipBox.insertBefore(b, chipBox.querySelector(".plus"));
+  };
+  const plus = document.createElement("button");
+  plus.type = "button"; plus.className = "plus"; plus.textContent = "＋ 質問を追加";
+  plus.onclick = () => openQ(agent, item => { addChip(item.label); ask(item.label); });
+  chipBox.appendChild(plus);
+  (agent.chips || agent.kb.map(k => k.label).filter(Boolean)).forEach(addChip);
+  p.querySelector("form").addEventListener("submit", e => {
+    e.preventDefault(); const i = e.target.querySelector("input"); ask(i.value); i.value = "";
+  });
+  p.querySelectorAll("[data-act]").forEach(b => b.onclick = () => b.dataset.act === "edit" ? openDialog(agent.id) : removeAgent(agent.id));
+
+  if (agent.custom) add("ai", agent.hello || `${agent.name}です。何でも聞いてください。`, true);
+  else add("ai", agent.hello);
+  panelsEl.appendChild(p);
+  return p;
+}
+
+function removeAgent(id){
+  const a = custom.find(x => x.id === id);
+  if (!a || !confirm(`「${a.name}」を削除しますか？`)) return;
+  custom = custom.filter(x => x.id !== id); store(custom);
+  if (panels[id]) { panels[id].remove(); delete panels[id]; }
+  show("roster");
+}
+
+// ===== 追加・編集ダイアログ =====
+const shade = document.getElementById("shade");
+const qaList = document.getElementById("qaList");
+const f = id => document.getElementById(id);
+let editing = null;
+
+function qaRow(keys="", ans=""){
+  const d = document.createElement("div");
+  d.className = "qa";
+  d.innerHTML = `<button type="button" class="del">削除</button>
+    <label>こう聞かれたら（キーワードを「,」で区切る）</label><input class="k" placeholder="例：点検, いつ, 無料点検">
+    <label>こう答える</label><textarea class="a" rows="2" placeholder="例：施工後1年と3年に無料点検を行っています。"></textarea>`;
+  d.querySelector(".k").value = keys; d.querySelector(".a").value = ans;
+  d.querySelector(".del").onclick = () => { d.remove(); if (!qaList.children.length) qaList.appendChild(qaRow()); };
+  qaList.appendChild(d);
+  return d;
+}
+
+function fill(data){
+  f("fName").value = data.name || ""; f("fRole").value = data.role || ""; f("fHello").value = data.hello || "";
+  if (data.fallback) f("fFallback").value = data.fallback;
+  qaList.innerHTML = "";
+  (data.qa && data.qa.length ? data.qa : [["",""]]).forEach(([k,a]) => qaRow(k,a));
+}
+
+PRESETS.forEach(pr => {
+  const b = document.createElement("button"); b.type = "button"; b.textContent = pr.label;
+  b.onclick = () => fill(pr); f("presets").appendChild(b);
+});
+
+function openDialog(id){
+  editing = typeof id === "string" ? custom.find(x => x.id === id) : null;
+  f("dlgTitle").textContent = editing ? "AI社員を編集" : "AI社員を追加";
+  f("save").textContent = editing ? "保存する" : "タブを作る";
+  f("presets").parentElement && (f("presets").style.display = editing ? "none" : "flex");
+  f("presets").previousElementSibling.style.display = editing ? "none" : "block";
+  f("fFallback").value = "その内容はまだ覚えていません。担当者に確認して折り返します。";
+  fill(editing ? { ...editing, qa: editing.kb.map(k => [k.keys.join(", "), k.a]) } : PRESETS[2]);
+  shade.classList.add("on");
+  setTimeout(() => f("fName").focus(), 0);
+}
+const closeDialog = () => shade.classList.remove("on");
+f("cancel").onclick = closeDialog;
+shade.addEventListener("click", e => { if (e.target === shade) closeDialog(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && shade.classList.contains("on")) closeDialog(); });
+f("addQa").onclick = () => qaRow().querySelector(".k").focus();
+
+f("save").onclick = () => {
+  const name = f("fName").value.trim();
+  if (!name) { alert("名前を入れてください"); f("fName").focus(); return; }
+  const kb = [...qaList.querySelectorAll(".qa")].map(d => {
+    const keys = d.querySelector(".k").value.split(/[,、，]/).map(s => s.trim()).filter(Boolean);
+    const a = d.querySelector(".a").value.trim();
+    return { keys, a, label: keys[0] };
+  }).filter(k => k.keys.length && k.a);
+  const data = {
+    id: editing ? editing.id : "c" + Date.now().toString(36),
+    custom: true, name, initial: initialOf(name),
+    role: f("fRole").value.trim(), hello: f("fHello").value.trim(),
+    fallback: f("fFallback").value.trim() || "その内容はまだ覚えていません。",
+    kb,
+  };
+  if (editing) custom = custom.map(x => x.id === data.id ? data : x); else custom.push(data);
+  store(custom);
+  if (panels[data.id]) { panels[data.id].remove(); delete panels[data.id]; }
+  closeDialog();
+  show(data.id);
+};
+
+// ===== チャット画面から質問を1つ足す =====
+const shadeQ = document.getElementById("shadeQ");
+let qTarget = null, qDone = null;
+function openQ(agent, done){
+  qTarget = agent; qDone = done;
+  f("qLead").textContent = `${agent.name}が答えられる質問を増やします。足した質問はボタンにもなります。`;
+  f("qLabel").value = ""; f("qKeys").value = ""; f("qAns").value = "";
+  shadeQ.classList.add("on");
+  setTimeout(() => f("qLabel").focus(), 0);
+}
+const closeQ = () => shadeQ.classList.remove("on");
+f("qCancel").onclick = closeQ;
+shadeQ.addEventListener("click", e => { if (e.target === shadeQ) closeQ(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && shadeQ.classList.contains("on")) closeQ(); });
+f("qSave").onclick = () => {
+  const label = f("qLabel").value.trim();
+  const a = f("qAns").value.trim();
+  if (!label || !a) { alert("ボタンの名前と答えを入れてください"); (label ? f("qAns") : f("qLabel")).focus(); return; }
+  // キーワードが空ならボタンの名前で反応する
+  const keys = [label, ...f("qKeys").value.split(/[,、，]/).map(s => s.trim()).filter(Boolean)];
+  const item = { keys, a, label };
+  if (qTarget.custom) {
+    qTarget.kb.push(item);
+    store(custom);
+  } else {
+    (extra[qTarget.id] = extra[qTarget.id] || []).push(item);
+    storeExtra();
+    qTarget.kb.push({ ...item, text:true });
+    qTarget.chips.push(label);
+  }
+  closeQ();
+  qDone(item);
+};
+
+show("roster");
+</script>
+</body>
+</html>

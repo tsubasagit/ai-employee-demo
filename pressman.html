@@ -1,0 +1,211 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI社員 会社案内</title>
+<style>
+:root{
+  --bg:#f4f4f2; --panel:#ffffff; --ink:#1a1a1a; --sub:#6b6b6b; --line:#e2e2df;
+  --me:#1a1a1a; --me-ink:#fff; --ai:#f1f1ef; --accent:#1a1a1a; --chip:#fff;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121212; --panel:#1b1b1b; --ink:#ececec; --sub:#9a9a9a; --line:#2c2c2c;
+    --me:#ececec; --me-ink:#121212; --ai:#242424; --accent:#ececec; --chip:#1b1b1b;
+  }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:"Noto Sans JP","Hiragino Sans","Yu Gothic UI",Meiryo,sans-serif;line-height:1.7}
+.wrap{max-width:760px;margin:0 auto;padding:24px 16px;min-height:100vh;display:flex;flex-direction:column}
+header{display:flex;align-items:center;gap:12px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.avatar{width:44px;height:44px;border-radius:50%;background:var(--accent);color:var(--bg);
+  display:grid;place-items:center;font-weight:700;font-size:14px;flex:none}
+.title b{display:block;font-size:16px}
+.title span{font-size:12px;color:var(--sub)}
+.status{margin-left:auto;font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px}
+.status i{width:8px;height:8px;border-radius:50%;background:#3aa76d;display:inline-block}
+#log{flex:1;overflow-y:auto;padding:20px 0;display:flex;flex-direction:column;gap:14px}
+.msg{display:flex;gap:10px;max-width:100%}
+.msg .avatar{width:32px;height:32px;font-size:11px}
+.bubble{padding:12px 14px;border-radius:14px;background:var(--ai);max-width:min(560px,86%);font-size:14.5px;overflow-wrap:anywhere}
+.me{justify-content:flex-end}
+.me .bubble{background:var(--me);color:var(--me-ink);border-bottom-right-radius:4px}
+.ai .bubble{border-top-left-radius:4px}
+.bubble table{border-collapse:collapse;width:100%;margin:6px 0;font-size:13.5px}
+.bubble th,.bubble td{text-align:left;vertical-align:top;padding:5px 8px;border-bottom:1px solid var(--line)}
+.bubble th{white-space:nowrap;color:var(--sub);font-weight:500;width:7em}
+.bubble ul{margin:4px 0;padding-left:1.2em}
+.bubble a{color:inherit}
+.src{display:block;margin-top:8px;font-size:11.5px;color:var(--sub)}
+.typing span{display:inline-block;width:6px;height:6px;margin:0 2px;border-radius:50%;background:var(--sub);animation:b 1s infinite}
+.typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+@keyframes b{0%,80%,100%{opacity:.25}40%{opacity:1}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;padding:10px 0}
+.chips button{border:1px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;
+  padding:6px 12px;font-size:13px;cursor:pointer;font-family:inherit}
+.chips button:hover{border-color:var(--ink)}
+form{display:flex;gap:8px;padding-top:10px;border-top:1px solid var(--line)}
+input{flex:1;min-width:0;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+  border-radius:12px;padding:12px 14px;font-size:15px;font-family:inherit}
+input:focus{outline:2px solid var(--ink);outline-offset:-1px}
+form button{border:0;background:var(--accent);color:var(--bg);border-radius:12px;padding:0 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.note{font-size:11px;color:var(--sub);text-align:center;padding-top:8px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="avatar">AI</div>
+    <div class="title"><b>プレスマン AI社員（会社案内）</b><span>株式会社プレスマンについて何でもどうぞ</span></div>
+    <div class="status"><i></i>24時間対応</div>
+  </header>
+
+  <div id="log" aria-live="polite"></div>
+  <div class="chips" id="chips"></div>
+
+  <form id="f">
+    <input id="q" autocomplete="off" placeholder="例：どんな事業をしていますか？" aria-label="質問">
+    <button>送信</button>
+  </form>
+  <div class="note">プロトタイプ：公式サイトの会社概要をもとに回答しています（AIは未接続・キーワード応答）</div>
+</div>
+
+<script>
+const SITE = "https://www.pressman.ne.jp";
+const src = (path, label) => `<span class="src">出典：<a href="${SITE}${path}" target="_blank" rel="noopener">${label}</a></span>`;
+
+// 公式サイト（/outline, /outline/about, /ai-employee/02）から取った情報だけで答える
+const KB = [
+  { id:"overview", label:"会社概要", keys:["概要","基本情報","プロフィール","どんな会社","会社について"],
+    a:`株式会社プレスマンの会社概要です。
+<table>
+<tr><th>商号</th><td>株式会社プレスマン</td></tr>
+<tr><th>設立</th><td>1932年3月</td></tr>
+<tr><th>資本金</th><td>32,700,000円</td></tr>
+<tr><th>代表者</th><td>代表取締役　関口 茂</td></tr>
+<tr><th>従業員数</th><td>30名</td></tr>
+<tr><th>所在地</th><td>〒103-0006 東京都中央区日本橋富沢町7-1 ザ・パークレックス人形町6階</td></tr>
+</table>
+事業内容や沿革も聞いてください。` + src("/outline","会社概要") },
+
+  { id:"business", label:"事業内容", keys:["事業","仕事","何をして","なにをして","サービス","業務内容","やってる"],
+    a:`主な事業は4つです。
+<ul>
+<li><b>WP10事業</b>：WordPressを使ったシステム開発</li>
+<li><b>Sketto事業</b>：Webマーケティング、EC開発・運営支援</li>
+<li><b>PARK事業</b>：現場の開発リソースのモビリティSaaS</li>
+<li><b>AWS</b>：構築コンサルティングと運用</li>
+</ul>
+ほかに、kintone活用の「アパレルの達人」、現場DX支援「GENBA30」、AI駆動開発、AI社員サービスも提供しています。` + src("/outline","会社概要") },
+
+  { id:"history", label:"沿革・歴史", keys:["沿革","歴史","創業","創立","設立","いつから","何年","老舗"],
+    a:`1932年に創立した、90年以上続くITベンチャーです。
+DTP・印刷から始まり、Web制作、モバイルコンテンツ配信、テレマーケティング、Webシステム開発、Webマーケティング、オウンドメディアと、挑戦を重ねて事業を広げてきました。
+インターネットに関わり始めたのは1993年。WordPressにも早くから取り組んでいます。` + src("/outline/about","「IT×人力で世界を変える」") },
+
+  { id:"mission", label:"ミッション・ビジョン", keys:["ミッション","ビジョン","理念","想い","思い","目指","方針","使命"],
+    a:`<b>ミッション</b>：変わる世界に追いつくだけでなく、自ら世界を変える組織になること。<br>
+<b>ビジョン</b>：現場の持続的発展で、人・組織・社会に活力を。<br>
+スローガンは「IT×人力で世界を変える」です。` + src("/outline/about","「IT×人力で世界を変える」") },
+
+  { id:"ceo", label:"代表者・役員", keys:["代表","社長","役員","取締役","経営者","トップ"],
+    a:`<table>
+<tr><th>代表取締役</th><td>関口 茂</td></tr>
+<tr><th>取締役</th><td>清水 俊朗</td></tr>
+<tr><th>取締役</th><td>萩原 奈穂子</td></tr>
+</table>` + src("/outline","会社概要") },
+
+  { id:"access", label:"所在地・アクセス", keys:["場所","住所","所在地","どこ","アクセス","オフィス","本社","行き方","人形町"],
+    a:`〒103-0006<br>東京都中央区日本橋富沢町7-1 ザ・パークレックス人形町6階<br>
+現在はテレワークとオフィス出社のハイブリッドで勤務しています。お越しの際は事前にご連絡ください。` + src("/outline","会社概要") },
+
+  { id:"contact", label:"問い合わせ", keys:["問い合わせ","問合せ","連絡","電話","相談","見積","依頼"],
+    a:`お電話は <b>03-4363-7957</b> です。<br>
+テレワーク中の社員もいるため、お手数ですが担当者へ直接ご連絡いただくか、公式サイトのお問い合わせフォームをご利用ください。` + src("/","公式サイト") },
+
+  { id:"cert", label:"認証・許可", keys:["認証","許可","資格","プライバシー","pマーク","派遣","職業紹介","インボイス","登録番号","セキュリティ"],
+    a:`<ul>
+<li>プライバシーマーク 10840011(12)</li>
+<li>電気通信事業届出 A-26-13692</li>
+<li>労働者派遣事業許可 派13-313078</li>
+<li>有料職業紹介事業許可 13-ユ-313878</li>
+<li>適格請求書発行事業者登録 T1010601013209</li>
+</ul>
+一般社団法人NoCoders Japan協会のFounder兼代表理事企業でもあります。` + src("/outline","会社概要") },
+
+  { id:"ai", label:"AI社員とは", keys:["ai社員","aiしゃいん","ai","料金","価格","いくら","値段","費用","導入"],
+    a:`AI社員は、社内規程・マニュアル・過去資料を学習してSlack／Teamsに常駐する、24時間365日働くAIメンバーです。
+<ul>
+<li>料金：月額15万円〜（初期構築費は別途お見積もり）</li>
+<li>最短1週間で配属：ヒアリング1〜2日 → 開発4日〜 → 導入支援 → 月次で改善</li>
+<li>例：契約書の一次レビュー、見積書・提案書の下書き、問い合わせメールの返信案、社内資料の検索</li>
+</ul>
+このチャットも、AI社員が「会社案内」の担当になったイメージです。` + src("/ai-employee/02","AI社員") },
+
+  { id:"size", label:"従業員数", keys:["従業員","社員数","人数","何人","規模","スタッフ"],
+    a:`従業員数は30名です（会社概要より）。` + src("/outline","会社概要") },
+
+  { id:"clients", label:"主な取引先", keys:["取引先","実績","顧客","クライアント","お客様","事例"],
+    a:`公式サイトでは、ウェルネス関連（衣食住・健康・スポーツ）を中心に、三菱商事ファッション、パル、川商フーズなどが取引先として掲載されています。<br>
+くわしい事例は担当者からご案内します。` + src("/outline","会社概要") },
+];
+
+const FALLBACK = `申し訳ありません、その内容はまだ覚えていません。<br>
+会社概要・事業内容・沿革・所在地・問い合わせ先などならお答えできます。下のボタンからも選べます。<br>
+<span class="src">本番では、社内資料を学習させて答えられる範囲を広げます。</span>`;
+
+const log = document.getElementById("log");
+const chips = document.getElementById("chips");
+const norm = s => s.toLowerCase().replace(/[Ａ-Ｚａ-ｚ０-９]/g, c => String.fromCharCode(c.charCodeAt(0) - 0xFEE0)).replace(/\s/g,"");
+
+function answer(q){
+  const t = norm(q);
+  let best = null, score = 0;
+  for (const item of KB){
+    const s = item.keys.reduce((n,k) => n + (t.includes(norm(k)) ? k.length : 0), 0);
+    if (s > score){ score = s; best = item; }
+  }
+  return best ? best.a : FALLBACK;
+}
+
+function add(who, html){
+  const row = document.createElement("div");
+  row.className = "msg " + who;
+  row.innerHTML = who === "ai"
+    ? `<div class="avatar">AI</div><div class="bubble">${html}</div>`
+    : `<div class="bubble"></div>`;
+  if (who === "me") row.querySelector(".bubble").textContent = html;
+  log.appendChild(row);
+  log.scrollTop = log.scrollHeight;
+  return row;
+}
+
+function ask(q){
+  if (!q.trim()) return;
+  add("me", q);
+  const typing = add("ai", `<span class="typing"><span></span><span></span><span></span></span>`);
+  setTimeout(() => {
+    typing.querySelector(".bubble").innerHTML = answer(q);
+    log.scrollTop = log.scrollHeight;
+  }, 500 + Math.random()*500);
+}
+
+KB.filter(k => ["overview","business","history","mission","access","contact","ai"].includes(k.id)).forEach(k => {
+  const b = document.createElement("button");
+  b.type = "button"; b.textContent = k.label;
+  b.onclick = () => ask(k.label + "を教えて");
+  chips.appendChild(b);
+});
+
+document.getElementById("f").addEventListener("submit", e => {
+  e.preventDefault();
+  const q = document.getElementById("q");
+  ask(q.value); q.value = "";
+});
+
+add("ai", `こんにちは。株式会社プレスマンのAI社員です。<br>会社のことなら何でも聞いてください。下のボタンからも選べます。`);
+</script>
+</body>
+</html>
